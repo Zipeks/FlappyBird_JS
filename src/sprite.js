@@ -38,10 +38,21 @@ class Bird extends Sprite {
 class World extends Sprite {
     position;
     speed;
+    score = 0;
 
     constructor(x, y, image, position, speed) {
         super(x, y, image);
         this.position = position;
         this.speed = speed;
+    }
+}
+class Pipe extends Sprite {
+    speed;
+    constructor(x, y, image, speed) {
+        super(x, y, image);
+        this.speed = speed;
+    }
+    update() {
+        this.x += this.speed;
     }
 }
