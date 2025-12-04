@@ -1,86 +1,198 @@
-const canvas = document.getElementById("myCanvas");
-const ctx = canvas.getContext("2d");
-const bird = new Bird(100, 50, "assets/images/yellowbird-midflap.png");
-const world = new World(0, 0, "assets/images/background-day.png", 0, -0.5)
-const base = new World(0,canvas.height - 112,"assets/images/base.png", 0 ,world.speed *  2);
-let pipes = [];
-const getRandomNumber = (min, max) => {
-    return Math.floor(Math.random() * (max - min) + min)
-}
+class Game {
+    constructor() {
+        this.canvas = document.getElementById("myCanvas");
+        this.ctx = this.canvas.getContext("2d");
 
-function genPipes() {
-    for (let i = 0; i < 100; i++) {
-        let h = Math.floor(world.img.height / 2 - 100);
-        let pipe_height = getRandomNumber(h - 60, h + 60)
-        // pipe_height - 320 bo 320 wysokość zdjęcia rury
-        pipes.push([new Pipe(300 + i * 225, pipe_height - 320, "assets/images/pipe-green_down.png", world.speed * 2),
-            new Pipe(300 + i * 225, pipe_height + 100, "assets/images/pipe-green_up.png", world.speed * 2)])
+        this.world = new World(0, 0, "assets/images/background-day.png", 0, -1);
+        this.bird = new Bird(50, this.canvas.height / 2, "assets/images/yellowbird-midflap.png");
+        this.base = new World(0, this.canvas.height - 112, "assets/images/base.png", 0, this.world.speed * 2);
+        this.startInfo = new Sprite(this.canvas.width / 2 - 92, this.canvas.height / 2 - 133, "assets/UI/message.png");
+        this.gameOverInfo = new Sprite(this.canvas.width / 2 - 92, this.canvas.height / 2 - 41, "assets/UI/gameover.png");
+
+
+
+        this.pipes = [];
+        this.pressed = false;
+        this.isRunning = false;
+        this.gameOver = false;
+        this.score = 0;
+        // Bindowanie metody loop, aby 'this' działało w requestAnimationFrame
+        this.loop = this.loop.bind(this);
+
+        this.genPipes();
+        this.addControls();
+        this.loop();
     }
-}
 
-genPipes();
+    getRandomNumber(min, max) {
+        return Math.floor(Math.random() * (max - min) + min);
+    }
 
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawBackground();
-    drawPipes();
-    drawBase();
-    bird.update();
-    drawBird();
-}
+    genPipes() {
+        let worldHeight = this.world.img.height || 600;
 
-function drawBackground() {
-    const w = world.img.width;
-    world.position = (((world.position + world.speed) % w + w) % w)
-    ctx.drawImage(world.img, world.position - w, world.y);
-    ctx.drawImage(world.img, world.position - 2, world.y);
-    ctx.drawImage(world.img, world.position + w - 4, world.y);
-}
-function drawBase() {
-    const w = base.img.width;
-    base.position = (((base.position + base.speed) % w + w) % w)
-    ctx.drawImage(base.img, base.position - w, base.y);
-    ctx.drawImage(base.img, base.position , base.y);
-    ctx.drawImage(base.img, base.position + w, base.y);
+        for (let i = 0; i < 100; i++) {
+            let h = Math.floor(worldHeight / 2 - 100);
+            let pipe_height = this.getRandomNumber(h - 60, h + 60);
 
-}
-function drawBird() {
-    ctx.save();
-
-    ctx.translate(bird.x + bird.img.width / 2, bird.y + bird.img.height / 2);
-    ctx.rotate(bird.angle);
-    ctx.drawImage(bird.img, -bird.img.width / 2, -bird.img.height / 2);
-    ctx.restore();
-}
-
-function drawPipes() {
-    for (let i = 0; i < pipes.length; i++) {
-        let c_pipes = pipes[i];
-        // console.log(c_pipes)
-        let pipeDown = c_pipes[0];
-        let pipeUp = c_pipes[1];
-        pipeDown.update();
-        pipeUp.update();
-        if (pipeUp.x < canvas.width && pipeUp.x > 0 - 100) {
-            ctx.drawImage(pipeDown.img, pipeDown.x, pipeDown.y);
-            ctx.drawImage(pipeUp.img, pipeUp.x, pipeUp.y);
-
+            this.pipes.push([
+                new Pipe(300 + i * 225, pipe_height - 320, "assets/images/pipe-green_down.png", this.world.speed * 2),
+                new Pipe(300 + i * 225, pipe_height + 100, "assets/images/pipe-green_up.png", this.world.speed * 2)
+            //     +52 bo pipe width + 32 ptak wyleciał
+            ,new Pipe(300+i*225+52+ 32,0, "assets/images/background-day.png",this.world.speed*2, 1000)]);
+            console.log(this.pipes.at(0)[2].height)
         }
     }
+
+    loop() {
+        this.draw();
+        requestAnimationFrame(this.loop);
+    }
+
+    draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.drawBackground();
+        this.drawPipes();
+        this.drawBase();
+        if (this.isRunning) {
+            if (!this.gameOver) {
+                this.bird.update();
+            } else {
+                if (this.bird.fall(this.base.y)) {
+                    this.isRunning = false;
+                }
+            }
+            if(!this.gameOver && this.checkCollisions()) {
+                this.bird.verticalSpeed = 6;
+                this.gameOver = true;
+            }
+        }
+        this.drawBird();
+        if (!this.isRunning && !this.gameOver) {
+            this.drawStartInfo();
+        } else if (!this.isRunning && this.gameOver) {
+            this.drawEndScreen();
+        }
+    }
+
+    drawStartInfo() {
+        this.ctx.drawImage(this.startInfo.img, this.startInfo.x, this.startInfo.y);
+    }
+    drawEndScreen() {
+        this.ctx.drawImage(this.gameOverInfo.img, this.gameOverInfo.x, this.gameOverInfo.y);
+    }
+
+    drawBackground() {
+        if (!this.world.img) return;
+
+        const w = this.world.img.width;
+        if (this.isRunning && !this.gameOver) {
+            this.world.position = (((this.world.position + this.world.speed) % w + w) % w);
+        }
+
+        this.ctx.drawImage(this.world.img, this.world.position - w, this.world.y);
+        this.ctx.drawImage(this.world.img, this.world.position - 2, this.world.y);
+        this.ctx.drawImage(this.world.img, this.world.position + w - 4, this.world.y);
+    }
+
+    drawBase() {
+        if (!this.base.img) return;
+
+        const w = this.base.img.width;
+        if (this.isRunning && !this.gameOver) {
+            this.base.position = (((this.base.position + this.base.speed) % w + w) % w);
+        }
+
+        this.ctx.drawImage(this.base.img, this.base.position - w, this.base.y);
+        this.ctx.drawImage(this.base.img, this.base.position, this.base.y);
+        this.ctx.drawImage(this.base.img, this.base.position + w, this.base.y);
+    }
+
+    drawBird() {
+        this.ctx.save();
+        this.ctx.translate(this.bird.x + this.bird.img.width / 2, this.bird.y + this.bird.img.height / 2);
+        this.ctx.rotate(this.bird.angle);
+        this.ctx.drawImage(this.bird.img, -this.bird.img.width / 2, -this.bird.img.height / 2);
+        this.ctx.restore();
+    }
+
+    drawPipes() {
+        for (let i = 0; i < this.pipes.length; i++) {
+            let c_pipes = this.pipes[i];
+            let pipeDown = c_pipes[0];
+            let pipeUp = c_pipes[1];
+            let scorePipe = c_pipes[2];
+            if (this.isRunning && !this.gameOver) {
+                pipeDown.update();
+                pipeUp.update();
+                scorePipe.update();
+            }
+
+            if (pipeUp.x < this.canvas.width && pipeUp.x > -100) {
+                this.ctx.drawImage(pipeDown.img, pipeDown.x, pipeDown.y);
+                this.ctx.drawImage(pipeUp.img, pipeUp.x, pipeUp.y);
+            }
+
+        }
+        if (this.pipes[0].x <= -100) {
+            this.pipes.shift();
+        }
+    }
+
+    checkCollisions() {
+        if (this.bird.y + this.bird.img.height >= this.base.y) {
+            return true;
+        }
+        const padding = 2;
+        const birdWidth = this.bird.img.width - padding * 2;
+        const birdHeight = this.bird.img.height - padding * 2;
+        const birdLeft = this.bird.x + padding;
+        const birdTop = this.bird.y + padding;
+
+        for (let i = 0; i < this.pipes.length; i++) {
+            for (let j = 0; j < 3; j++) {
+                let pipe = this.pipes[i][j];
+
+                if (
+                    birdLeft < pipe.x + pipe.img.width &&
+                    birdLeft + birdWidth > pipe.x &&
+                    birdTop < pipe.y + pipe.height &&
+                    birdTop + birdHeight > pipe.y
+                ) {
+                    if (j < 2) {
+                        return true;
+                    } else if (!pipe.hitted) {
+                        pipe.hitted = true;
+                        this.score += 1
+                        console.log(this.score);
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    addControls() {
+        // Używamy arrow functions (=>), żeby zachować kontekst 'this'
+        window.addEventListener('keydown', (e) => {
+            if (e.code === "Space") {
+                if (!this.isRunning ) {
+                    this.isRunning = true;
+                    this.bird.verticalSpeed = -3.5;
+                } else if (!this.pressed && !this.gameOver) {
+                    this.bird.verticalSpeed = -3.5;
+                    this.pressed = true;
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === "Space") {
+                this.pressed = false;
+            }
+        });
+    }
 }
 
-
-let pressed = false;
-window.addEventListener('keydown', function (e) {
-    if (!pressed && e.code === "Space") {
-        bird.verticalSpeed = -3.5;
-    }
-    pressed = true;
-})
-
-window.addEventListener('keyup', function (e) {
-    if (e.code === "Space") {
-        pressed = false;
-    }
-})
-setInterval(draw,10)
+const game = new Game();

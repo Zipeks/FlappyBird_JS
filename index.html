@@ -5,17 +5,30 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Flappy Bird</title>
         <style>
+            body {background: black;}
             * {
                 padding: 0;
                 margin: 0;
             }
             canvas {
                 display: block;
+                width:705px;
+                height: 768px;
             }
+            main {
+                width: 100%;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
         </style>
     </head>
     <body>
+    <main>
         <canvas id="myCanvas" width="470px" height="512px"> </canvas>
+    </main>
 
         <script src="src/sprite.js"></script>
         <script src="src/script.js"></script>
