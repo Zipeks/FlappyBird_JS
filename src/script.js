@@ -2,21 +2,25 @@ class Game {
     constructor() {
         this.canvas = document.getElementById("myCanvas");
         this.ctx = this.canvas.getContext("2d");
-
+        if (window.localStorage.getItem("topScores") == null) {
+            window.localStorage.setItem("topScores", JSON.stringify([]));
+        }
+        this.scoreSaved = false;
         this.world = new World(0, 0, "assets/images/background-day.png", 0, -1);
         this.bird = new Bird(50, this.canvas.height / 2, "assets/images/yellowbird-midflap.png");
         this.base = new World(0, this.canvas.height - 112, "assets/images/base.png", 0, this.world.speed * 2);
         this.startInfo = new Sprite(this.canvas.width / 2 - 92, this.canvas.height / 2 - 133, "assets/UI/message.png");
-        this.gameOverInfo = new Sprite(this.canvas.width / 2 - 92, this.canvas.height / 2 - 41, "assets/UI/gameover.png");
-
-
-
+        this.gameOverInfo = new Sprite(this.canvas.width / 2 - 92, this.canvas.height / 2 - 150, "assets/UI/gameover.png");
+        this.scoreNumbers = [];
+        for (let i = 0; i < 10; i++) {
+            this.scoreNumbers.push(new Image());
+            this.scoreNumbers.at(-1).src = `assets/UI/Numbers/${i}.png`;
+        }
         this.pipes = [];
         this.pressed = false;
         this.isRunning = false;
         this.gameOver = false;
-        this.score = 0;
-        // Bindowanie metody loop, aby 'this' działało w requestAnimationFrame
+        this.score = 20;
         this.loop = this.loop.bind(this);
 
         this.genPipes();
@@ -38,9 +42,8 @@ class Game {
             this.pipes.push([
                 new Pipe(300 + i * 225, pipe_height - 320, "assets/images/pipe-green_down.png", this.world.speed * 2),
                 new Pipe(300 + i * 225, pipe_height + 100, "assets/images/pipe-green_up.png", this.world.speed * 2)
-            //     +52 bo pipe width + 32 ptak wyleciał
-            ,new Pipe(300+i*225+52+ 32,0, "assets/images/background-day.png",this.world.speed*2, 1000)]);
-            console.log(this.pipes.at(0)[2].height)
+                //     +52 bo pipe width + 32 ptak wyleciał
+                , new Pipe(300 + i * 225 + 52 + 32, 0, "assets/images/background-day.png", this.world.speed * 2,)]);
         }
     }
 
@@ -55,6 +58,7 @@ class Game {
         this.drawBackground();
         this.drawPipes();
         this.drawBase();
+        this.drawScore();
         if (this.isRunning) {
             if (!this.gameOver) {
                 this.bird.update();
@@ -63,7 +67,7 @@ class Game {
                     this.isRunning = false;
                 }
             }
-            if(!this.gameOver && this.checkCollisions()) {
+            if (!this.gameOver && this.checkCollisions()) {
                 this.bird.verticalSpeed = 6;
                 this.gameOver = true;
             }
@@ -72,15 +76,48 @@ class Game {
         if (!this.isRunning && !this.gameOver) {
             this.drawStartInfo();
         } else if (!this.isRunning && this.gameOver) {
+            if (!this.scoreSaved) {
+                this.updateTopScores();
+                this.scoreSaved = true;
+            }
             this.drawEndScreen();
+        }
+    }
+
+    drawScore() {
+        if (this.score < 10) {
+            this.ctx.drawImage(this.scoreNumbers[this.score], this.canvas.width - 30, 10)
+        } else {
+            if (this.score < 20) {
+                this.ctx.drawImage(this.scoreNumbers[Math.floor(this.score / 10)], this.canvas.width - 50, 10)
+            } else {
+                this.ctx.drawImage(this.scoreNumbers[Math.floor(this.score / 10)], this.canvas.width - 55, 10)
+            }
+            this.ctx.drawImage(this.scoreNumbers[this.score % 10], this.canvas.width - 30, 10)
         }
     }
 
     drawStartInfo() {
         this.ctx.drawImage(this.startInfo.img, this.startInfo.x, this.startInfo.y);
     }
+
     drawEndScreen() {
         this.ctx.drawImage(this.gameOverInfo.img, this.gameOverInfo.x, this.gameOverInfo.y);
+        let arr = JSON.parse(window.localStorage.getItem("topScores"));
+        for (let i = 0; i < arr.length; i++) {
+            let topScore = arr[i];
+            if (topScore < 10) {
+                this.ctx.drawImage(this.scoreNumbers[topScore], this.gameOverInfo.x, this.gameOverInfo.y + 50 + i * 50);
+            } else {
+                this.ctx.drawImage(this.scoreNumbers[Math.floor(topScore / 10)], this.gameOverInfo.x, this.gameOverInfo.y + 50 + i * 50);
+                if (topScore < 20) {
+                    this.ctx.drawImage(this.scoreNumbers[topScore % 10], this.gameOverInfo.x + 20, this.gameOverInfo.y + 50 + i * 50)
+                } else {
+                    this.ctx.drawImage(this.scoreNumbers[topScore % 10], this.gameOverInfo.x + 30, this.gameOverInfo.y + 50 + i * 50)
+                }
+            }
+
+        }
     }
 
     drawBackground() {
@@ -135,7 +172,7 @@ class Game {
             }
 
         }
-        if (this.pipes[0].x <= -100) {
+        if (this.pipes[0][0].x <= -100) {
             this.pipes.shift();
         }
     }
@@ -173,19 +210,41 @@ class Game {
         return false;
     }
 
+    updateTopScores() {
+        let arr = JSON.parse(window.localStorage.getItem("topScores"));
+        arr.push(this.score);
+        arr.sort((a, b) => b - a);
+        arr = arr.slice(0, 5);
+        window.localStorage.setItem("topScores", JSON.stringify(arr));
+    }
+    reset() {
+        this.bird = new Bird(50, this.canvas.height / 2, "assets/images/yellowbird-midflap.png");
+        this.pipes = [];
+        this.genPipes();
+        this.score = 0;
+        this.gameOver = false;
+        this.isRunning = false;
+        this.scoreSaved = false;
+        this.pressed = false;
+    }
+
     addControls() {
-        // Używamy arrow functions (=>), żeby zachować kontekst 'this'
         window.addEventListener('keydown', (e) => {
             if (e.code === "Space") {
-                if (!this.isRunning ) {
+                if (!this.isRunning && !this.gameOver) {
                     this.isRunning = true;
                     this.bird.verticalSpeed = -3.5;
-                } else if (!this.pressed && !this.gameOver) {
+                }
+                else if (this.isRunning && !this.gameOver && !this.pressed) {
                     this.bird.verticalSpeed = -3.5;
                     this.pressed = true;
                 }
+                else if (!this.isRunning && this.gameOver) {
+                    this.reset();
+                }
             }
         });
+
 
         window.addEventListener('keyup', (e) => {
             if (e.code === "Space") {
