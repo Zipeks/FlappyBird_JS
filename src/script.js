@@ -6,6 +6,11 @@ class Game {
             window.localStorage.setItem("topScores", JSON.stringify([]));
         }
         this.scoreSaved = false;
+
+        this.backgroundMusic = new Audio();
+        this.dieSound = new Audio("assets/Sound Efects/die.ogg");
+        this.pointSound = new Audio("assets/Sound Efects/points.ogg");
+
         this.world = new World(0, 0, "assets/images/background-day.png", 0, -1);
         this.bird = new Bird(50, this.canvas.height / 2, "assets/images/yellowbird-midflap.png");
         this.base = new World(0, this.canvas.height - 112, "assets/images/base.png", 0, this.world.speed * 2);
@@ -20,7 +25,7 @@ class Game {
         this.pressed = false;
         this.isRunning = false;
         this.gameOver = false;
-        this.score = 20;
+        this.score =  0;
         this.loop = this.loop.bind(this);
 
         this.genPipes();
@@ -36,12 +41,13 @@ class Game {
         let worldHeight = this.world.img.height || 600;
 
         for (let i = 0; i < 100; i++) {
+            let difficulty = Math.floor(i / 10)*5;
             let h = Math.floor(worldHeight / 2 - 100);
             let pipe_height = this.getRandomNumber(h - 60, h + 60);
 
             this.pipes.push([
                 new Pipe(300 + i * 225, pipe_height - 320, "assets/images/pipe-green_down.png", this.world.speed * 2),
-                new Pipe(300 + i * 225, pipe_height + 100, "assets/images/pipe-green_up.png", this.world.speed * 2)
+                new Pipe(300 + i * 225, pipe_height + 100 - difficulty, "assets/images/pipe-green_up.png", this.world.speed * 2)
                 //     +52 bo pipe width + 32 ptak wyleciał
                 , new Pipe(300 + i * 225 + 52 + 32, 0, "assets/images/background-day.png", this.world.speed * 2,)]);
         }
@@ -77,6 +83,7 @@ class Game {
             this.drawStartInfo();
         } else if (!this.isRunning && this.gameOver) {
             if (!this.scoreSaved) {
+                this.dieSound.play();
                 this.updateTopScores();
                 this.scoreSaved = true;
             }
@@ -203,6 +210,7 @@ class Game {
                         pipe.hitted = true;
                         this.score += 1
                         console.log(this.score);
+                        this.pointSound.play();
                     }
                 }
             }
